@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เว็บไซต์บันทึกรายรับ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="loading-overlay" class="hidden">
+        <div class="spinner"></div>
+        <p>กำลังดำเนินการ...</p>
+    </div>
+
+    <div id="notification-container"></div>
+    
+    <div class="container">
+        <h1>บันทึกรายรับ</h1>
+        
+        <div class="fab-group">
+            <button id="addBtn" class="fab">เพิ่มรายการ</button>
+            <button id="viewBtn" class="fab">ดูรายการ</button>
+        </div>
+
+        <div id="addSection" class="section">
+            <h2>เพิ่มรายการใหม่</h2>
+            <form id="addForm">
+                <div class="form-group">
+                    <label for="name">ชื่อ-นามสกุล</label>
+                    <input type="text" id="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="date">วัน/เดือน/ปี</label>
+                    <input type="date" id="date" required>
+                </div>
+                <div class="form-group">
+                    <label for="amount">ยอด</label>
+                    <input type="number" id="amount" required>
+                </div>
+                <div class="form-group">
+                    <label for="slip">สลิป (URL)</label>
+                    <input type="text" id="slip" required>
+                </div>
+                <div class="form-group">
+                    <label for="responsiblePerson">ผู้รับผิดชอบ</label>
+                    <input type="text" id="responsiblePerson" required>
+                </div>
+                <div class="form-group">
+                    <button type="submit">บันทึกข้อมูล</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="viewSection" class="section">
+            <h2>ประวัติรายการทั้งหมด</h2>
+            
+            <div class="fab-group">
+                <button id="refreshBtn" class="fab" style="background:#6c757d;">รีเฟรชข้อมูล</button>
+                <button id="clearBtn" class="fab" style="background: var(--danger);">ล้างข้อมูลทั้งหมด</button>
+            </div>
+            
+            <div id="search-container">
+                <input type="text" id="searchName" placeholder="ค้นหาชื่อ...">
+                <input type="date" id="searchDate">
+            </div>
+            
+            <div id="daily-total-summary"></div>
+            <div id="total-summary"></div>
+            
+            <div style="overflow-x:auto;">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>ชื่อ-นามสกุล</th>
+                            <th>วัน/เดือน/ปี</th>
+                            <th>ยอด</th>
+                            <th>สลิป</th>
+                            <th>ผู้รับผิดชอบ</th>
+                            <th>การจัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            
+            <div class="pagination-controls">
+                <button id="prevBtn" class="fab">ก่อนหน้า</button>
+                <span id="page-info">หน้า 1 จาก 1</span>
+                <button id="nextBtn" class="fab">ถัดไป</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>แก้ไขรายการ</h2>
+            <form id="editForm">
+                <input type="hidden" id="edit-id">
+                <div class="form-group">
+                    <label>ชื่อ-นามสกุล</label>
+                    <input type="text" id="edit-name" required>
+                </div>
+                <div class="form-group">
+                    <label>วัน/เดือน/ปี</label>
+                    <input type="date" id="edit-date" required>
+                </div>
+                <div class="form-group">
+                    <label>ยอด</label>
+                    <input type="number" id="edit-amount" required>
+                </div>
+                <div class="form-group">
+                    <label>สลิป</label>
+                    <input type="text" id="edit-slip" required>
+                </div>
+                <div class="form-group">
+                    <label>ผู้รับผิดชอบ</label>
+                    <input type="text" id="edit-responsiblePerson" required>
+                </div>
+                <div class="form-group">
+                    <button type="submit">บันทึกการแก้ไข</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="confirmationModal" class="modal">
+        <div class="modal-content modal-content-confirm">
+            <p id="confirmMessage"></p>
+            <div class="button-group">
+                <button id="confirmYes" class="fab" style="background: var(--danger);">ยืนยัน</button>
+                <button id="confirmNo" class="fab" style="background: var(--primary);">ยกเลิก</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
