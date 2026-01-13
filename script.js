@@ -6,13 +6,52 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyqeK0tTnJ2SVIp
 let currentPage = 0;
 const pageSize = 10;
 let allEntries = [];
+let pendingAction = null;
+
+// ✅ 1. ตั้งค่าเสียง
+const successSound = new Audio('https://files.catbox.moe/xkmwbe.mp3');
+const errorSound = new Audio('https://files.catbox.moe/vwgo0n.mp3');   
+const uiClickSound = new Audio('https://files.catbox.moe/xhazec.mp3'); 
+
+function playSound(isSuccess) {
+    const audio = isSuccess ? successSound : errorSound;
+    audio.currentTime = 0;
+    audio.play().catch(e => console.log('Audio play failed:', e));
+}
+
+function playClickSound() {
+    const soundClone = uiClickSound.cloneNode(); 
+    soundClone.volume = 0.6; 
+    soundClone.play().catch(() => {});
+}
 
 document.addEventListener('DOMContentLoaded', () => {
-    // UI References
+    
+    document.body.addEventListener('click', (e) => {
+        if (e.target.closest('button') || e.target.closest('input') || e.target.closest('a') || e.target.closest('.fab')) {
+            playClickSound();
+        }
+    });
+
+    // --- 2. จัดการ Theme ---
+    const themeToggleBtn = document.getElementById('themeToggle');
+    const currentTheme = localStorage.getItem('theme');
+    
+    if (currentTheme === 'light') {
+        document.body.classList.remove('dark-mode');
+    }
+
+    themeToggleBtn.addEventListener('click', () => {
+        document.body.classList.toggle('dark-mode');
+        const theme = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
+        localStorage.setItem('theme', theme);
+    });
+
+    // --- 3. ตัวแปร UI ---
     const addBtn = document.getElementById('addBtn');
     const viewBtn = document.getElementById('viewBtn');
     const refreshBtn = document.getElementById('refreshBtn');
-    const clearBtn = document.getElementById('clearBtn'); // ✅ เพิ่มตัวแปร
+    const clearBtn = document.getElementById('clearBtn');
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
     const pageInfo = document.getElementById('page-info');
@@ -26,7 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const dailyTotalSummary = document.getElementById('daily-total-summary');
     const loadingOverlay = document.getElementById('loading-overlay');
     
-    // Modal References
     const editModal = document.getElementById('editModal');
     const editForm = document.getElementById('editForm');
     const closeModalBtn = editModal.querySelector('.close');
@@ -35,7 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmYesBtn = document.getElementById('confirmYes');
     const confirmNoBtn = document.getElementById('confirmNo');
 
-    // --- Core API ---
+    // --- 4. ฟังก์ชัน API ---
     async function callAPI(action, data = null) {
         loadingOverlay.classList.remove('hidden');
         try {
@@ -58,6 +96,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function showAlert(message, type = 'success') {
+        playSound(type === 'success');
+
         const container = document.getElementById('notification-container');
         const notification = document.createElement('div');
         notification.className = `toast-notification ${type}`;
@@ -89,24 +129,31 @@ document.addEventListener('DOMContentLoaded', () => {
         section.style.display = 'block';
     }
 
-    // --- Event Listeners ---
+    // --- 5. Event Listeners ---
     addBtn.addEventListener('click', () => showSection(addSection));
     viewBtn.addEventListener('click', () => { showSection(viewSection); fetchEntries(); });
     refreshBtn.addEventListener('click', fetchEntries);
     
-    // ✅ ปุ่มล้างข้อมูลทั้งหมด
     clearBtn.addEventListener('click', () => {
-        pendingAction = { type: 'clear' }; // ตั้งค่า Action
+        pendingAction = { type: 'clear' };
         confirmationModal.style.display = 'flex';
         confirmMessage.textContent = 'คุณแน่ใจหรือไม่ว่าต้องการ "ล้างข้อมูลทั้งหมด"? (กู้คืนไม่ได้)';
     });
 
     addForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        
+        // ✅ ตรวจสอบค่ายอดเงินก่อนบันทึก
+        const amountVal = document.getElementById('amount').value;
+        if (amountVal < 1) {
+            showAlert('ยอดเงินต้องไม่ต่ำกว่า 1', 'error');
+            return;
+        }
+
         const data = {
             name: document.getElementById('name').value,
             date: document.getElementById('date').value,
-            amount: document.getElementById('amount').value,
+            amount: amountVal,
             slip: document.getElementById('slip').value,
             responsiblePerson: document.getElementById('responsiblePerson').value
         };
@@ -119,10 +166,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // --- 6. Table Logic ---
     async function fetchEntries() {
         const result = await callAPI('read');
         if (Array.isArray(result)) {
-            allEntries = result; // ไม่ reverse (เรียง 1->มาก)
+            allEntries = result;
             currentPage = 0;
             renderTable(allEntries);
         }
@@ -226,27 +274,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentPage < totalPages - 1) { currentPage++; renderTable(allEntries); }
     });
 
-    // --- Delete / Clear Logic (ปรับปรุงใหม่) ---
-    let pendingAction = null; // เก็บสถานะว่ากำลังจะทำอะไร (ลบเดี่ยว หรือ ล้างหมด)
-
+    // --- 7. Modal Logic ---
     window.prepareDelete = (id) => {
-        pendingAction = { type: 'delete', id: id }; // เตรียมลบรายตัว
+        pendingAction = { type: 'delete', id: id };
         confirmationModal.style.display = 'flex';
         confirmMessage.textContent = 'คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?';
     }
 
     confirmYesBtn.onclick = async () => {
         confirmationModal.style.display = 'none';
-        
         if (pendingAction) {
             let result;
-            
-            // กรณีลบรายตัว
             if (pendingAction.type === 'delete') {
                 result = await callAPI('delete', { id: pendingAction.id });
-            } 
-            // กรณีล้างข้อมูลทั้งหมด
-            else if (pendingAction.type === 'clear') {
+            } else if (pendingAction.type === 'clear') {
                 result = await callAPI('clear');
             }
 
@@ -256,15 +297,11 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 showAlert(result.message, 'error');
             }
-            pendingAction = null; // รีเซ็ตสถานะ
+            pendingAction = null;
         }
     };
-    confirmNoBtn.onclick = () => {
-        confirmationModal.style.display = 'none';
-        pendingAction = null;
-    };
+    confirmNoBtn.onclick = () => { confirmationModal.style.display = 'none'; pendingAction = null; };
 
-    // --- Edit Logic ---
     window.prepareEdit = (entry) => {
         document.getElementById('edit-id').value = entry['ID'];
         document.getElementById('edit-name').value = entry['ชื่อ-นามสกุล'];
@@ -279,11 +316,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     editForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        // ✅ ตรวจสอบยอดเงินตอนแก้ไขด้วย
+        const editAmountVal = document.getElementById('edit-amount').value;
+        if (editAmountVal < 1) {
+            showAlert('ยอดเงินต้องไม่ต่ำกว่า 1', 'error');
+            return;
+        }
+
         const data = {
             id: document.getElementById('edit-id').value,
             name: document.getElementById('edit-name').value,
             date: document.getElementById('edit-date').value,
-            amount: document.getElementById('edit-amount').value,
+            amount: editAmountVal,
             slip: document.getElementById('edit-slip').value,
             responsiblePerson: document.getElementById('edit-responsiblePerson').value
         };
